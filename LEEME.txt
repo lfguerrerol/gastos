@@ -1,0 +1,52 @@
+CONTROL DE GASTOS — instalación en iPhone
+==========================================
+
+QUÉ ES CADA ARCHIVO
+
+  index.html      La app. NO contiene datos personales. Es la que se publica.
+  sw.js           Hace que la app abra sin internet.
+  manifest.json   Nombre e icono cuando la pones en la pantalla de inicio.
+  icon-*.png      Iconos.
+  mis-datos.json  TUS DATOS. Nunca lo subas a ningún lado. Solo se importa
+                  desde el teléfono, una vez.
+
+PASO 1 — PUBLICAR LA APP (una sola vez, ~5 min)
+
+  1. Entra a github.com y crea un repositorio nuevo llamado  gastos
+  2. Sube SOLO estos archivos:
+       index.html, sw.js, manifest.json, icon-180.png, icon-192.png, icon-512.png
+     NO subas mis-datos.json
+  3. Settings → Pages → Branch: main → carpeta / (root) → Save
+  4. Espera 1-2 minutos. Te da una liga tipo:
+       https://TUUSUARIO.github.io/gastos/
+
+PASO 2 — INSTALARLA EN EL TELÉFONO
+
+  1. Abre esa liga en SAFARI (no Chrome).
+  2. Botón Compartir (cuadro con flecha) → "Agregar a inicio".
+  3. Ya tienes el icono. Ábrela desde ahí, no desde Safari.
+
+PASO 3 — CARGAR TUS DATOS
+
+  1. Manda mis-datos.json a tu iPhone (AirDrop, iCloud Drive o correo a ti mismo).
+  2. Abre la app desde el icono → pestaña Datos → "Restaurar desde archivo"
+  3. Elige mis-datos.json. Aparecen tus 16 compromisos.
+  4. Ve a Pagos y corrige las fechas de corte reales de tus tarjetas.
+
+PASO 4 — PONER LOS AVISOS EN EL CALENDARIO
+
+  1. En Calendario de iOS crea un calendario nuevo llamado "Gastos".
+  2. En la app: Avisos → Exportar al Calendario → mándalo a ese calendario.
+  3. Repite cuando cambien tus montos (borra el calendario y reexporta).
+
+RUTINA
+
+  Diario     Botón + para cada compra (tecla N en PC).
+  Semanal    Cuadrar con banco en cada tarjeta.
+  Mensual    Datos → Descargar respaldo. Guárdalo en iCloud.
+
+SI NO QUIERES USAR GITHUB
+
+  Puedes abrir index.html directamente desde la app Archivos, pero en iOS los
+  datos guardados en un archivo local se pierden con facilidad y no puedes
+  ponerlo en la pantalla de inicio. Sirve para probar, no para usarlo de diario.
