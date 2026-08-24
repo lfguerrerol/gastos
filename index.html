@@ -1062,7 +1062,7 @@ function editar(id){
   const c = n ? { id:'c'+Date.now(), nombre:'', tipo:'fijo', monto:0, saldo:0, saldoFecha:iso(HOY),
     diaLimite:15, diaCorte:null, esTarjeta:false, corteOk:true, frecuencia:'mensual', mesAncla:1,
     automatico:false, prorrateo:0, activo:true, referencia:'', clabe:'', concepto:'', notas:'',
-    color:PALETA[S.compromisos.length%PALETA.length] } : S.compromisos.find(x=>x.id===id);
+    cargos:[], color:PALETA[S.compromisos.length%PALETA.length] } : S.compromisos.find(x=>x.id===id);
   const sel = (v,o)=>o.map(([k,l])=>`<option value="${k}"${String(v)===String(k)?' selected':''}>${l}</option>`).join('');
   abrir(`<h3>${n?'Nuevo compromiso':'Editar'}</h3>
     <label>Nombre</label><input id="fNom" value="${c.nombre}" placeholder="Tarjeta HSBC">
