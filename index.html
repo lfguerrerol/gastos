@@ -420,6 +420,7 @@ function migrar(){
   if(S.cfg.presupuesto == null) S.cfg.presupuesto = 3000;
   if(S.cfg.incCortes == null)   S.cfg.incCortes = true;
   S.compromisos.forEach(c=>{
+    if(!Array.isArray(c.cargos)) c.cargos = [];
     if(c.esTarjeta   == null) c.esTarjeta = false;
     if(c.diaCorte    === undefined) c.diaCorte = null;
     if(c.corteOk     == null) c.corteOk = false;
@@ -514,18 +515,20 @@ function periodoActual(c){
   const cic = cicloDe(c, iso(HOY));
   if(!cic) return null;
   const gs = S.gastos.filter(g => g.tarjeta===c.id && cicloDe(c, g.fecha) && cicloDe(c, g.fecha).id === cic.id);
-  const consumo = gs.reduce((s,g)=>s+g.monto,0);
-  const aPagar  = gs.reduce((s,g)=>s + g.monto/Math.max(1,+g.msi||1), 0);
-  return { ...cic, gs, consumo, aPagar, faltan: dias(HOY, cic.corte) };
+  const cs = c.cargos.filter(x => cicloDe(c, x.fecha)?.id === cic.id);
+  const consumo = gs.reduce((s,g)=>s+g.monto,0) + cs.reduce((s,x)=>s+x.monto,0);
+  const aPagar  = gs.reduce((s,g)=>s + g.monto/Math.max(1,+g.msi||1), 0) + cs.reduce((s,x)=>s+x.monto,0);
+  return { ...cic, gs, cs, consumo, aPagar, faltan: dias(HOY, cic.corte) };
 }
 
 /* Saldo calculado = base + gastos posteriores − pagos posteriores */
 function saldoCalc(c){
   const base = parse(c.saldoFecha || '2026-08-19');
   const g = S.gastos.filter(x=>x.tarjeta===c.id && parse(x.fecha) > base).reduce((s,x)=>s+x.monto,0);
+  const cargos = c.cargos.filter(x=>parse(x.fecha) > base).reduce((s,x)=>s+x.monto,0);
   const p = Object.entries(S.pagos).filter(([k,v])=>k.split('|')[0]===c.id && parse(v.fecha) > base)
               .reduce((s,[,v])=>s+v.monto,0);
-  return Math.max(0, (+c.saldo||0) + g - p);
+  return Math.max(0, (+c.saldo||0) + g + cargos - p);
 }
 
 /* ═══════════ 5. VENCIMIENTOS ═══════════ */
@@ -798,6 +801,7 @@ function renderGastos(){
         <span>saldo ${money(saldoCalc(c))}</span>
       </div>
       <div class="meta" style="margin-top:4px"><span>${p.gs.length} mov · caerá ${money(p.aPagar)} en este pago</span></div>
+      ${p.cs.length?`<div class="meta" style="margin-top:4px"><span>${p.cs.length} cargo${p.cs.length===1?'':'s'} adicional${p.cs.length===1?'':'es'}</span></div>`:''}
       <div class="actions"><button class="btn gh" onclick="ajustar('${c.id}')">Cuadrar con banco</button></div>
     </div></div>`;
   }).join('') || '<div class="empty"><b>Sin tarjetas con corte</b>Agrega la fecha de corte en Pagos → Editar.</div>';
@@ -866,6 +870,7 @@ function renderCompromisos(){
         ${c.automatico?'<span class="pill auto">Automático</span>':''}
       </div>
       <div class="actions"><button class="btn" onclick="editar('${c.id}')">Editar</button>
+      ${c.esTarjeta?`<button class="btn" onclick="agregarCargo('${c.id}')">Agregar cargo</button>`:''}
       <button class="btn gh" onclick="detalle('${c.id}')">Referencias</button></div>
     </div></div>`).join('');
 }
@@ -1123,6 +1128,23 @@ function guardarComp(id,nuevo){
   });
   if(nuevo) S.compromisos.push(c);
   guardar(); cerrar(); render(); toast('Guardado');
+}
+function agregarCargo(id){
+  const c = S.compromisos.find(x=>x.id===id);
+  abrir(`<h3>Agregar cargo</h3><div class="sub">${c.nombre} · aparecerá en el próximo pago de esta tarjeta</div>
+    <label>Monto del cargo</label><input type="number" inputmode="decimal" id="cargoMonto" placeholder="0">
+    <label>Concepto</label><input id="cargoNota" placeholder="Comisión o ajuste">
+    <label>Fecha del cargo</label><input type="date" id="cargoFecha" value="${iso(HOY)}">
+    <button class="btn pri wide" style="margin-top:16px" onclick="guardarCargo('${id}')">Guardar cargo</button>`);
+}
+function guardarCargo(id){
+  const monto = +document.getElementById('cargoMonto').value||0;
+  const fecha = document.getElementById('cargoFecha').value;
+  if(monto<=0){ toast('Pon un monto'); return; }
+  if(!fecha){ toast('Elige una fecha'); return; }
+  const c = S.compromisos.find(x=>x.id===id);
+  c.cargos.push({id:'x'+Date.now(), monto, fecha, nota:document.getElementById('cargoNota').value.trim()});
+  guardar(); cerrar(); render(); toast('Cargo agregado');
 }
 function borrarComp(id){
   const c = S.compromisos.find(x=>x.id===id);
