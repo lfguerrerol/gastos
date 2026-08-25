@@ -195,8 +195,8 @@ ol.steps b{color:var(--ink)}
   .wrap{max-width:1060px;padding:0 34px}
   header{padding-top:24px}
   .brand h1{font-size:21px}
-  #v-semana.on,#v-gastos.on{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;align-items:start}
-  #v-semana .hero,#v-gastos .sec:nth-child(1){grid-column:1/-1}
+  #v-semana.on,#v-gastos.on,#v-ingresos.on{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;align-items:start}
+  #v-semana .hero,#v-gastos .sec:nth-child(1),#v-ingresos .hero{grid-column:1/-1}
   .hero{grid-template-columns:repeat(4,1fr)}
   #v-compromisos .hero{grid-template-columns:1fr 1fr}
   #compList,#gastosList,#proxList{columns:1}
@@ -232,6 +232,8 @@ ol.steps b{color:var(--ink)}
     <div class="hero">
       <div class="stat a"><span class="lbl">Apartar esta semana</span><div class="val" id="hApartar">—</div><div class="sub" id="hApartarSub"></div></div>
       <div class="stat b"><span class="lbl">Vence esta semana</span><div class="val" id="hVence">—</div><div class="sub" id="hVenceSub"></div></div>
+      <div class="stat a"><span class="lbl">Ingresa esta semana</span><div class="val" id="hIngresa">—</div><div class="sub" id="hIngresaSub"></div></div>
+      <div class="stat a" id="hBalanceBox"><span class="lbl">Balance</span><div class="val" id="hBalance">—</div><div class="sub" id="hBalanceSub"></div></div>
     </div>
     <div class="sec">
       <div class="sec-head"><h2>Carga por semana</h2><span class="hint">toca una barra</span></div>
@@ -248,6 +250,23 @@ ol.steps b{color:var(--ink)}
   </div>
 
   <!-- ===== GASTOS ===== -->
+  <!-- ===== INGRESOS ===== -->
+  <div class="view" id="v-ingresos">
+    <div class="hero">
+      <div class="stat a"><span class="lbl">Ingreso fijo al mes</span><div class="val" id="iMensual">—</div><div class="sub" id="iMensualSub"></div></div>
+      <div class="stat b"><span class="lbl">Próximo ingreso</span><div class="val" id="iProximo">—</div><div class="sub" id="iProximoSub"></div></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><h2>Fuentes de ingreso</h2><span class="hint" id="fCount"></span></div>
+      <div id="fuentesList"></div>
+      <button class="btn wide" style="margin-top:10px" onclick="editarFuente(null)">+ Agregar fuente</button>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><h2>Entradas registradas</h2><span class="hint" id="iCount"></span></div>
+      <div id="ingresosList"></div>
+    </div>
+  </div>
+
   <div class="view" id="v-gastos">
     <div class="sec">
       <div class="panel budget">
@@ -352,6 +371,7 @@ ol.steps b{color:var(--ink)}
 
 <nav>
   <button class="on" data-v="semana" onclick="tab('semana')"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 5-8 4 5"/></svg>Semana</button>
+  <button data-v="ingresos" onclick="tab('ingresos')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16V8M8 12l4-4 4 4"/></svg>Ingresos</button>
   <button data-v="gastos" onclick="tab('gastos')"><svg viewBox="0 0 24 24"><path d="M3 7h18v12a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M3 7l2-4h14l2 4"/><path d="M9 12h6"/></svg>Gastos</button>
   <button data-v="compromisos" onclick="tab('compromisos')"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Pagos</button>
   <button data-v="cal" onclick="tab('cal')"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Avisos</button>
@@ -388,7 +408,19 @@ const CATS = [
   {id:'escuela',nombre:'Escuela',  color:'#22d3ee'},
   {id:'ropa',   nombre:'Ropa',     color:'#ec4899'},
   {id:'ocio',   nombre:'Ocio',     color:'#facc15'},
-  {id:'otros',  nombre:'Otros',    color:'#94a3b8'}
+  {id:'otros',  nombre:'Otros',    color:'#94a3b8'},
+  {id:'cargo',  nombre:'Cargo bancario', color:'#f4587a'}
+];
+const TIPOS_CARGO = ['Interés','Anualidad','Comisión','Cargo por atraso','Seguro','Ajuste','Otro'];
+const CATS_INGRESO = [
+  {id:'salario',   nombre:'Salario',    color:'#3ecf9a'},
+  {id:'bono',      nombre:'Bono',       color:'#d4af37'},
+  {id:'aguinaldo', nombre:'Aguinaldo',  color:'#14b8a6'},
+  {id:'freelance', nombre:'Freelance',  color:'#6366f1'},
+  {id:'reembolso', nombre:'Reembolso',  color:'#38bdf8'},
+  {id:'regalo',    nombre:'Regalo',     color:'#ec4899'},
+  {id:'venta',     nombre:'Venta',      color:'#f59e0b'},
+  {id:'otro',      nombre:'Otro ingreso', color:'#94a3b8'}
 ];
 
 /* ═══════════ 2. SEMILLA ═══════════ */
@@ -402,6 +434,7 @@ function semilla(){
   return {
     v:2,
     cfg:{ meses:6, hora:'09:00', avisos:[5,2,0], presupuesto:3000, incCortes:true },
+    fuentes:[], ingresos:[],
     pagos:{}, gastos:[], cats:CATS.slice(),
     compromisos:[
       c({nombre:'Efectivo / Débito',monto:0,saldo:0,diaLimite:1,esTarjeta:true,diaCorte:null,corteOk:true,tipo:'variable',color:'#5b7096',notas:'Cuenta para gasto que no va a tarjeta'},15)
@@ -414,13 +447,15 @@ let S = DB.load() || semilla();
 function migrar(){
   if(!S.gastos) S.gastos = [];
   if(!S.cats)   S.cats = CATS.slice();
+  if(!S.cats.some(c=>c.id==='cargo')) S.cats.push({id:'cargo', nombre:'Cargo bancario', color:'#f4587a'});
+  if(!S.fuentes)  S.fuentes = [];
+  if(!S.ingresos) S.ingresos = [];
   if(!S.meta)   S.meta = {};
   if(!S.meta.creado) S.meta.creado = iso(HOY);
   if(S.meta.aperturas == null) S.meta.aperturas = 0;
   if(S.cfg.presupuesto == null) S.cfg.presupuesto = 3000;
   if(S.cfg.incCortes == null)   S.cfg.incCortes = true;
   S.compromisos.forEach(c=>{
-    if(!Array.isArray(c.cargos)) c.cargos = [];
     if(c.esTarjeta   == null) c.esTarjeta = false;
     if(c.diaCorte    === undefined) c.diaCorte = null;
     if(c.corteOk     == null) c.corteOk = false;
@@ -515,20 +550,18 @@ function periodoActual(c){
   const cic = cicloDe(c, iso(HOY));
   if(!cic) return null;
   const gs = S.gastos.filter(g => g.tarjeta===c.id && cicloDe(c, g.fecha) && cicloDe(c, g.fecha).id === cic.id);
-  const cs = c.cargos.filter(x => cicloDe(c, x.fecha)?.id === cic.id);
-  const consumo = gs.reduce((s,g)=>s+g.monto,0) + cs.reduce((s,x)=>s+x.monto,0);
-  const aPagar  = gs.reduce((s,g)=>s + g.monto/Math.max(1,+g.msi||1), 0) + cs.reduce((s,x)=>s+x.monto,0);
-  return { ...cic, gs, cs, consumo, aPagar, faltan: dias(HOY, cic.corte) };
+  const consumo = gs.reduce((s,g)=>s+g.monto,0);
+  const aPagar  = gs.reduce((s,g)=>s + g.monto/Math.max(1,+g.msi||1), 0);
+  return { ...cic, gs, consumo, aPagar, faltan: dias(HOY, cic.corte) };
 }
 
 /* Saldo calculado = base + gastos posteriores − pagos posteriores */
 function saldoCalc(c){
   const base = parse(c.saldoFecha || '2026-08-19');
   const g = S.gastos.filter(x=>x.tarjeta===c.id && parse(x.fecha) > base).reduce((s,x)=>s+x.monto,0);
-  const cargos = c.cargos.filter(x=>parse(x.fecha) > base).reduce((s,x)=>s+x.monto,0);
   const p = Object.entries(S.pagos).filter(([k,v])=>k.split('|')[0]===c.id && parse(v.fecha) > base)
               .reduce((s,[,v])=>s+v.monto,0);
-  return Math.max(0, (+c.saldo||0) + g + cargos - p);
+  return Math.max(0, (+c.saldo||0) + g - p);
 }
 
 /* ═══════════ 5. VENCIMIENTOS ═══════════ */
@@ -609,7 +642,26 @@ function consumoSemana(){
   return S.gastos.filter(g=>{ const d=parse(g.fecha); return d>=ini && d<=fin; }).reduce((s,g)=>s+g.monto,0);
 }
 
-/* ═══════════ 6. ICS ═══════════ */
+/* ═══════════ 6. INGRESOS ═══════════ */
+/* Una fuente fija (salario, etc.) tiene la misma forma que un compromiso,
+   así que reutiliza fechasDe() directo — mismo motor de frecuencias. */
+function ingresosEnRango(desde, hasta){
+  const out = [];
+  for(const f of S.fuentes){
+    if(!f.activo) continue;
+    for(const d of fechasDe(f, desde, hasta)) out.push({ nombre:f.nombre, color:f.color, monto:f.monto, fecha:d, fijo:true, f });
+  }
+  for(const g of S.ingresos){
+    const d = parse(g.fecha);
+    if(d < desde || d > hasta) continue;
+    const cat = CATS_INGRESO.find(c=>c.id===g.cat) || {nombre:'Ingreso', color:'#94a3b8'};
+    out.push({ nombre:g.nota||cat.nombre, color:cat.color, monto:g.monto, fecha:d, fijo:false, g });
+  }
+  return out.sort((a,b)=>a.fecha-b.fecha);
+}
+const ingresoMensual = () => S.fuentes.filter(f=>f.activo).reduce((s,f)=>s+(+f.monto||0)*(FACTOR[f.frecuencia]||1), 0);
+
+/* ═══════════ 7. ICS ═══════════ */
 function esc(s){ return String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
 function fold(line){
   const enc=new TextEncoder();
@@ -706,7 +758,7 @@ let semSel = 0;
 
 function render(){
   document.getElementById('today').textContent = HOY.getDate()+' '+MES[HOY.getMonth()]+' '+HOY.getFullYear();
-  renderAvisos(); renderSemana(); renderGastos(); renderCompromisos(); renderCal(); renderHist(); renderCats(); renderSalud();
+  renderAvisos(); renderSemana(); renderIngresos(); renderGastos(); renderCompromisos(); renderCal(); renderHist(); renderCats(); renderSalud();
 }
 
 function renderAvisos(){
@@ -717,7 +769,7 @@ function renderAvisos(){
     const d = dias(parse(S.meta.migrado), HOY);
     a.push(`<div class="banner"><b>Esta copia ya se pasó al teléfono</b> el ${S.meta.migrado}${d?` (hace ${d} ${d===1?'día':'días'})`:''}. El teléfono es la versión buena. Lo que captures aquí no llega allá.</div>`);
   }
-  if(S.compromisos.length <= 1) a.push('<div class="banner"><b>Primer uso.</b> Ve a Datos → Restaurar desde archivo y carga el JSON que generaste en la PC.</div>');
+  if(S.compromisos.length <= 1) a.push('<div class="banner"><b>Primer uso.</b> Ve a Datos → Restaurar desde archivo y carga tu JSON.</div>');
   if(sinCorte.length) a.push(`<div class="banner"><b>Confirma tus fechas de corte.</b> Puse valores de ejemplo en ${sinCorte.length} tarjetas. Sin el corte real, los cálculos de periodo salen mal. <button onclick="tab('compromisos')">Ir a corregir</button></div>`);
   document.getElementById('avisos').innerHTML = a.join('');
 }
@@ -729,6 +781,16 @@ function renderSemana(){
   const w0 = ws[0];
   document.getElementById('hVence').innerHTML = `<small>$</small>${Math.round(w0.total).toLocaleString('es-MX')}`;
   document.getElementById('hVenceSub').textContent = w0.vs.length ? w0.vs.length+(w0.vs.length===1?' pago':' pagos') : 'sin pagos';
+
+  const ing = ingresosEnRango(w0.ini, w0.fin).reduce((s,x)=>s+x.monto,0);
+  document.getElementById('hIngresa').innerHTML = `<small>$</small>${Math.round(ing).toLocaleString('es-MX')}`;
+  document.getElementById('hIngresaSub').textContent = S.fuentes.filter(f=>f.activo).length ? 'de tus fuentes fijas' : 'sin fuentes registradas';
+
+  const bal = ing - ap;
+  const bBox = document.getElementById('hBalanceBox');
+  document.getElementById('hBalance').innerHTML = `<small>$</small>${Math.round(Math.abs(bal)).toLocaleString('es-MX')}`;
+  bBox.classList.remove('a','c'); bBox.classList.add(bal>=0?'a':'c');
+  document.getElementById('hBalanceSub').textContent = bal>=0 ? 'libre tras apartar' : 'falta para apartar';
 
   const max = Math.max(...ws.map(w=>w.total),1);
   const chart = document.getElementById('yzChart'), axis = document.getElementById('yzAxis');
@@ -777,6 +839,56 @@ function tarjetaVenc(v){
     </div></div></div>`;
 }
 
+function renderIngresos(){
+  const fijo = ingresoMensual();
+  document.getElementById('iMensual').innerHTML = `<small>$</small>${Math.round(fijo).toLocaleString('es-MX')}`;
+  const activas = S.fuentes.filter(f=>f.activo).length;
+  document.getElementById('iMensualSub').textContent = activas ? activas+(activas===1?' fuente activa':' fuentes activas') : 'sin fuentes';
+
+  const prox = ingresosEnRango(HOY, sumDias(HOY,60)).filter(x=>x.fijo);
+  if(prox.length){
+    document.getElementById('iProximo').textContent = money(prox[0].monto);
+    document.getElementById('iProximoSub').textContent = prox[0].nombre+' · '+fcorta(prox[0].fecha);
+  } else {
+    document.getElementById('iProximo').textContent = '—';
+    document.getElementById('iProximoSub').textContent = 'sin fuentes activas';
+  }
+
+  document.getElementById('fCount').textContent = S.fuentes.length+' registrada'+(S.fuentes.length===1?'':'s');
+  document.getElementById('fuentesList').innerHTML = S.fuentes.length ? S.fuentes.map(f=>{
+    const cat = CATS_INGRESO.find(c=>c.id===f.tipo) || {color:'#94a3b8'};
+    return `<div class="card" style="${f.activo?'':'opacity:.42'}"><div class="bar" style="background:${cat.color}"></div><div class="body">
+      <div class="top"><span class="cn">${f.nombre}</span><span class="ca">${money(f.monto)}</span></div>
+      <div class="meta"><span>${etiquetaFrec(f)}</span></div>
+      <div class="actions"><button class="btn" onclick="editarFuente('${f.id}')">Editar</button></div>
+    </div></div>`;
+  }).join('') : '<div class="empty"><b>Sin fuentes</b>Agrega tu salario u otra entrada fija.</div>';
+
+  const gs = S.ingresos.slice().sort((a,b)=> a.fecha<b.fecha?1:a.fecha>b.fecha?-1:(b.id-a.id));
+  document.getElementById('iCount').textContent = gs.length+' registrada'+(gs.length===1?'':'s');
+  if(!gs.length){
+    document.getElementById('ingresosList').innerHTML = '<div class="empty"><b>Sin entradas</b>Toca + para registrar un bono u otro ingreso.</div>';
+    return;
+  }
+  let html='', ultimo='';
+  for(const g of gs.slice(0,80)){
+    if(g.fecha !== ultimo){
+      ultimo = g.fecha;
+      const d = parse(g.fecha);
+      const tot = gs.filter(x=>x.fecha===g.fecha).reduce((s,x)=>s+x.monto,0);
+      const et = iso(HOY)===g.fecha ? 'Hoy' : iso(sumDias(HOY,-1))===g.fecha ? 'Ayer' : `${d.getDate()} ${MES[d.getMonth()]}`;
+      html += `<div class="daylabel"><span>${et}</span><span style="color:var(--ok)">+${money(tot)}</span></div>`;
+    }
+    const catR = CATS_INGRESO.find(c=>c.id===g.cat) || {nombre:'—',color:'#94a3b8'};
+    html += `<div class="card"><div class="bar" style="background:${catR.color}"></div><div class="body">
+      <div class="top"><span class="cn">${g.nota||catR.nombre}</span><span class="ca" style="color:var(--ok)">+${money(g.monto)}</span></div>
+      <div class="meta"><span>${catR.nombre}</span></div>
+      <div class="actions"><button class="btn gh" onclick="borrarIngreso(${g.id})">Eliminar</button></div>
+    </div></div>`;
+  }
+  document.getElementById('ingresosList').innerHTML = html;
+}
+
 function renderGastos(){
   // presupuesto
   const gastado = consumoSemana(), pres = +S.cfg.presupuesto||0, rest = pres - gastado;
@@ -801,8 +913,7 @@ function renderGastos(){
         <span>saldo ${money(saldoCalc(c))}</span>
       </div>
       <div class="meta" style="margin-top:4px"><span>${p.gs.length} mov · caerá ${money(p.aPagar)} en este pago</span></div>
-      ${p.cs.length?`<div class="meta" style="margin-top:4px"><span>${p.cs.length} cargo${p.cs.length===1?'':'s'} adicional${p.cs.length===1?'':'es'}</span></div>`:''}
-      <div class="actions"><button class="btn gh" onclick="ajustar('${c.id}')">Cuadrar con banco</button></div>
+      <div class="actions"><button class="btn pri" onclick="cargoTarjeta('${c.id}')">+ Cargo</button><button class="btn gh" onclick="ajustar('${c.id}')">Cuadrar con banco</button></div>
     </div></div>`;
   }).join('') || '<div class="empty"><b>Sin tarjetas con corte</b>Agrega la fecha de corte en Pagos → Editar.</div>';
 
@@ -839,7 +950,8 @@ function renderGastos(){
     html += `<div class="card"><div class="bar" style="background:${cat.color}"></div><div class="body">
       <div class="top"><span class="cn">${g.nota||cat.nombre}</span><span class="ca">${money(g.monto)}</span></div>
       <div class="meta"><span>${cat.nombre}</span><span>${tj?tj.nombre:'—'}</span>
-        ${(+g.msi||1)>1?`<span class="pill msi">${g.msi} MSI · ${money(g.monto/g.msi)}/mes</span>`:''}</div>
+        ${(+g.msi||1)>1?`<span class="pill msi">${g.msi} MSI · ${money(g.monto/g.msi)}/mes</span>`:''}
+        ${g.cat==='cargo'?`<span class="pill hoy">Cargo</span>`:''}</div>
       <div class="actions"><button class="btn gh" onclick="borrarGasto(${g.id})">Eliminar</button></div>
     </div></div>`;
   }
@@ -870,7 +982,6 @@ function renderCompromisos(){
         ${c.automatico?'<span class="pill auto">Automático</span>':''}
       </div>
       <div class="actions"><button class="btn" onclick="editar('${c.id}')">Editar</button>
-      ${c.esTarjeta?`<button class="btn" onclick="agregarCargo('${c.id}')">Agregar cargo</button>`:''}
       <button class="btn gh" onclick="detalle('${c.id}')">Referencias</button></div>
     </div></div>`).join('');
 }
@@ -925,8 +1036,8 @@ function renderSalud(){
     <p class="note" style="margin:10px 0 0;color:${color}">${veredicto}</p>
     ${proto==='file:'?'<p class="note" style="margin-top:8px"><b>Estás en modo archivo local.</b> En iOS este almacenamiento se puede borrar sin avisar; en Windows es estable.</p>':''}
     <p class="note" style="margin-top:10px;border-top:1px solid var(--line);padding-top:9px">
-      <b>Atajos de teclado</b><span class="kbd">N</span> nuevo gasto
-      <span class="kbd">1</span>–<span class="kbd">5</span> pestañas
+      <b>Atajos de teclado</b><span class="kbd">N</span> nuevo gasto/ingreso
+      <span class="kbd">1</span>–<span class="kbd">6</span> pestañas
       <span class="kbd">Enter</span> confirmar <span class="kbd">Esc</span> cerrar</p>`;
 }
 
@@ -988,6 +1099,38 @@ function borrarGasto(id){
   });
 }
 
+/* Cargo bancario: intereses, anualidad, comisiones — sube el saldo en el momento */
+let borradorCargo = null;
+function cargoTarjeta(id){
+  const c = tarjeta(id);
+  if(!c){ toast('Tarjeta no encontrada'); return; }
+  borradorCargo = { tarjeta:id, monto:'', tipo:'Interés', fecha:iso(HOY), nota:'' };
+  pintarCargo();
+}
+function pintarCargo(){
+  const c = tarjeta(borradorCargo.tarjeta);
+  abrir(`<h3>Cargo en ${c.nombre}</h3><div class="sub">Sube el saldo al momento — intereses, anualidad, comisiones</div>
+    <input id="chMonto" type="number" inputmode="decimal" placeholder="0" value="${borradorCargo.monto}"
+      oninput="borradorCargo.monto=this.value" autocomplete="off">
+    <label>Tipo de cargo</label>
+    <div class="chips">${TIPOS_CARGO.map(t=>`<button class="chip${borradorCargo.tipo===t?' on':''}" onclick="borradorCargo.tipo='${t}';pintarCargo()">${t}</button>`).join('')}</div>
+    <p class="stat c" style="margin:14px 0"><span class="lbl">Saldo antes</span>
+      <span class="val" style="font-size:20px">${money(saldoCalc(c))}</span></p>
+    ${(+borradorCargo.monto)>0?`<p class="note">Saldo queda en <b>${money(saldoCalc(c)+(+borradorCargo.monto))}</b></p>`:''}
+    <label>Nota (opcional)</label><input id="chNota" value="${borradorCargo.nota}" oninput="borradorCargo.nota=this.value">
+    <label>Fecha</label><input type="date" id="chFecha" value="${borradorCargo.fecha}" onchange="borradorCargo.fecha=this.value;pintarCargo()">
+    <button class="btn pri wide" style="margin-top:16px" onclick="guardarCargo()">Registrar cargo</button>`);
+  const i = document.getElementById('chMonto');
+  if(i && !borradorCargo.monto) setTimeout(()=>i.focus(),150);
+}
+function guardarCargo(){
+  const m = +borradorCargo.monto;
+  if(!m || m<=0){ toast('Pon un monto'); return; }
+  S.gastos.push({ id:Date.now(), fecha:borradorCargo.fecha, monto:m, tarjeta:borradorCargo.tarjeta,
+    cat:'cargo', msi:1, nota:(borradorCargo.tipo+(borradorCargo.nota?' — '+borradorCargo.nota.trim():'')) });
+  guardar(); cerrar(); render(); toast('Cargo registrado — saldo actualizado');
+}
+
 /* Red de seguridad: cuadrar con el saldo real del banco */
 function ajustar(id){
   const c = tarjeta(id), calc = saldoCalc(c);
@@ -1046,7 +1189,8 @@ function detalle(id){
     ${p?`<p class="note">Periodo en curso: <b>${money(p.consumo)}</b> en ${p.gs.length} movimientos. Corta el ${fcorta(p.corte)} y se paga el ${fcorta(p.pago)}.</p>`:''}
     ${refs || '<p class="note">Sin referencias guardadas.</p>'}
     ${c.notas?`<p class="note" style="margin-top:12px"><b>Nota.</b> ${c.notas}</p>`:''}
-    <button class="btn wide" style="margin-top:14px" onclick="editar('${c.id}')">Editar</button>`);
+    <button class="btn wide" style="margin-top:14px" onclick="editar('${c.id}')">Editar</button>
+    ${c.esTarjeta?`<button class="btn pri wide" style="margin-top:8px" onclick="cargoTarjeta('${c.id}')">+ Cargo a esta tarjeta</button>`:''}`);
 }
 
 function copiar(t){
@@ -1057,12 +1201,94 @@ function copiar(t){
     });
 }
 
+/* ═══════════ 9b. FUENTES DE INGRESO ═══════════ */
+/* Misma forma que un compromiso (frecuencia, día, etc.) -> reutiliza camposFrec() y fechasDe() tal cual */
+function editarFuente(id){
+  const n = !id;
+  const f = n ? { id:'f'+Date.now(), nombre:'', monto:0, frecuencia:'quincenal', diaLimite:15, dia2:30,
+    diaSemana:5, mesAncla:1, activo:true, tipo:'salario', notas:'', color:PALETA[S.fuentes.length%PALETA.length] }
+    : S.fuentes.find(x=>x.id===id);
+  const sel = (v,o)=>o.map(([k,l])=>`<option value="${k}"${String(v)===String(k)?' selected':''}>${l}</option>`).join('');
+  abrir(`<h3>${n?'Nueva fuente de ingreso':'Editar fuente'}</h3>
+    <label>Nombre</label><input id="fNom" value="${f.nombre}" placeholder="Sueldo Flex">
+    <div class="grid2">
+      <div><label>Tipo</label><select id="fTipo2">${sel(f.tipo, CATS_INGRESO.map(c=>[c.id,c.nombre]))}</select></div>
+      <div><label>Frecuencia</label><select id="fFrec" onchange="camposFrec()">${sel(f.frecuencia,[['semanal','Semanal'],['quincenal','Quincenal'],['mensual','Mensual'],['bimestral','Bimestral'],['anual','Anual']])}</select></div>
+      <div><label>Importe</label><input type="number" inputmode="decimal" id="fMonto" value="${f.monto}" oninput="camposFrec()"></div>
+      <div id="boxDia"><label>Día de pago</label><input type="number" inputmode="numeric" min="1" max="31" id="fDia" value="${f.diaLimite}"></div>
+      <div id="boxDia2"><label>Segundo día</label><input type="number" inputmode="numeric" min="1" max="31" id="fDia2" value="${f.dia2||segundoDia(f)}"></div>
+      <div id="boxSem"><label>Día de la semana</label><select id="fSem">${sel(f.diaSemana==null?5:f.diaSemana, DIASEM.map((nm,i)=>[i,nm[0].toUpperCase()+nm.slice(1)]))}</select></div>
+    </div>
+    <p class="note" id="fEquiv"></p>
+    <label>Notas</label><textarea id="fNotas2" rows="2">${f.notas}</textarea>
+    <label>Activa</label><select id="fAct2">${sel(f.activo,[[true,'Sí'],[false,'No, pausada']])}</select>
+    <button class="btn pri wide" style="margin-top:16px" onclick="guardarFuente('${f.id}',${n})">Guardar</button>
+    ${n?'':`<button class="btn danger wide" style="margin-top:8px" onclick="borrarFuente('${f.id}')">Eliminar</button>`}`);
+  camposFrec();
+}
+function guardarFuente(id,nuevo){
+  const g = x=>document.getElementById(x).value;
+  const f = nuevo ? { id, color:PALETA[S.fuentes.length%PALETA.length], mesAncla:1 } : S.fuentes.find(x=>x.id===id);
+  if(!g('fNom').trim()){ toast('Ponle nombre'); return; }
+  Object.assign(f,{
+    nombre:g('fNom').trim(), tipo:g('fTipo2'), frecuencia:g('fFrec'), monto:+g('fMonto')||0,
+    diaLimite:Math.min(31,Math.max(1,+g('fDia')||1)), diaSemana:+g('fSem'),
+    dia2: g('fFrec')==='quincenal' ? Math.min(31,Math.max(1,+g('fDia2')||15)) : null,
+    notas:g('fNotas2').trim(), activo:g('fAct2')==='true'
+  });
+  if(nuevo) S.fuentes.push(f);
+  guardar(); cerrar(); render(); toast('Guardado');
+}
+function borrarFuente(id){
+  const f = S.fuentes.find(x=>x.id===id);
+  confirmar('Eliminar fuente', `Se elimina <b>${f?f.nombre:''}</b>. No se puede deshacer.`, 'Eliminar', ()=>{
+    S.fuentes = S.fuentes.filter(x=>x.id!==id);
+    guardar(); cerrar(); render(); toast('Eliminada');
+  });
+}
+
+/* ═══════════ 9c. INGRESOS SUELTOS (bonos, entradas externas) ═══════════ */
+let borradorIngreso = null;
+function nuevoIngreso(){
+  borradorIngreso = { monto:'', cat:'bono', fecha:iso(HOY), nota:'' };
+  pintarIngreso();
+}
+function pintarIngreso(){
+  abrir(`<h3>Nueva entrada</h3><div class="sub">Bono, aguinaldo, freelance, cualquier ingreso externo</div>
+    <input id="iMonto" type="number" inputmode="decimal" placeholder="0" value="${borradorIngreso.monto}"
+      oninput="borradorIngreso.monto=this.value" autocomplete="off">
+    <label>Tipo</label>
+    <div class="chips">${CATS_INGRESO.filter(c=>c.id!=='salario').map(c=>`<button class="chip${borradorIngreso.cat===c.id?' on':''}" onclick="borradorIngreso.cat='${c.id}';pintarIngreso()"><span class="d" style="background:${c.color}"></span>${c.nombre}</button>`).join('')}</div>
+    <label>Nota</label><input id="iNota" value="${borradorIngreso.nota}" placeholder="Aguinaldo Flex" oninput="borradorIngreso.nota=this.value">
+    <label>Fecha</label><input type="date" id="iFecha" value="${borradorIngreso.fecha}" onchange="borradorIngreso.fecha=this.value">
+    <button class="btn pri wide" style="margin-top:16px" onclick="guardarIngreso()">Guardar</button>`);
+  const i = document.getElementById('iMonto');
+  if(i && !borradorIngreso.monto) setTimeout(()=>i.focus(),150);
+}
+function guardarIngreso(){
+  const m = +borradorIngreso.monto;
+  if(!m || m<=0){ toast('Pon un monto'); return; }
+  S.ingresos.push({ id:Date.now(), fecha:borradorIngreso.fecha, monto:m, cat:borradorIngreso.cat, nota:(borradorIngreso.nota||'').trim() });
+  guardar(); cerrar(); render(); toast('Ingreso registrado');
+}
+function borrarIngreso(id){
+  const g = S.ingresos.find(x=>String(x.id)===String(id));
+  if(!g){ toast('Ya no existe'); return; }
+  const copia = JSON.parse(JSON.stringify(g));
+  S.ingresos = S.ingresos.filter(x=>String(x.id)!==String(id));
+  guardar(); render();
+  toastUndo(`${money(copia.monto)} eliminado`, ()=>{
+    if(!S.ingresos.some(x=>String(x.id)===String(copia.id))) S.ingresos.push(copia);
+    guardar(); render(); toast('Restaurado');
+  });
+}
+
 function editar(id){
   const n = !id;
   const c = n ? { id:'c'+Date.now(), nombre:'', tipo:'fijo', monto:0, saldo:0, saldoFecha:iso(HOY),
     diaLimite:15, diaCorte:null, esTarjeta:false, corteOk:true, frecuencia:'mensual', mesAncla:1,
     automatico:false, prorrateo:0, activo:true, referencia:'', clabe:'', concepto:'', notas:'',
-    cargos:[], color:PALETA[S.compromisos.length%PALETA.length] } : S.compromisos.find(x=>x.id===id);
+    color:PALETA[S.compromisos.length%PALETA.length] } : S.compromisos.find(x=>x.id===id);
   const sel = (v,o)=>o.map(([k,l])=>`<option value="${k}"${String(v)===String(k)?' selected':''}>${l}</option>`).join('');
   abrir(`<h3>${n?'Nuevo compromiso':'Editar'}</h3>
     <label>Nombre</label><input id="fNom" value="${c.nombre}" placeholder="Tarjeta HSBC">
@@ -1128,23 +1354,6 @@ function guardarComp(id,nuevo){
   });
   if(nuevo) S.compromisos.push(c);
   guardar(); cerrar(); render(); toast('Guardado');
-}
-function agregarCargo(id){
-  const c = S.compromisos.find(x=>x.id===id);
-  abrir(`<h3>Agregar cargo</h3><div class="sub">${c.nombre} · aparecerá en el próximo pago de esta tarjeta</div>
-    <label>Monto del cargo</label><input type="number" inputmode="decimal" id="cargoMonto" placeholder="0">
-    <label>Concepto</label><input id="cargoNota" placeholder="Comisión o ajuste">
-    <label>Fecha del cargo</label><input type="date" id="cargoFecha" value="${iso(HOY)}">
-    <button class="btn pri wide" style="margin-top:16px" onclick="guardarCargo('${id}')">Guardar cargo</button>`);
-}
-function guardarCargo(id){
-  const monto = +document.getElementById('cargoMonto').value||0;
-  const fecha = document.getElementById('cargoFecha').value;
-  if(monto<=0){ toast('Pon un monto'); return; }
-  if(!fecha){ toast('Elige una fecha'); return; }
-  const c = S.compromisos.find(x=>x.id===id);
-  c.cargos.push({id:'x'+Date.now(), monto, fecha, nota:document.getElementById('cargoNota').value.trim()});
-  guardar(); cerrar(); render(); toast('Cargo agregado');
 }
 function borrarComp(id){
   const c = S.compromisos.find(x=>x.id===id);
@@ -1232,7 +1441,9 @@ function tab(v){
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('on'));
   document.getElementById('v-'+v).classList.add('on');
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
-  document.getElementById('fab').classList.toggle('on', v==='semana'||v==='gastos');
+  const fab = document.getElementById('fab');
+  fab.classList.toggle('on', v==='semana'||v==='gastos'||v==='ingresos');
+  fab.onclick = v==='ingresos' ? nuevoIngreso : nuevoGasto;
   window.scrollTo(0,0);
 }
 function abrir(html){
@@ -1296,8 +1507,8 @@ document.addEventListener('keydown', e => {
 
   if(!abierta && !enCampo){
     if(e.key === 'n' || e.key === 'N'){ e.preventDefault(); nuevoGasto(); return; }
-    const i = ['1','2','3','4','5'].indexOf(e.key);
-    if(i >= 0){ e.preventDefault(); tab(['semana','gastos','compromisos','cal','datos'][i]); }
+    const i = ['1','2','3','4','5','6'].indexOf(e.key);
+    if(i >= 0){ e.preventDefault(); tab(['semana','ingresos','gastos','compromisos','cal','datos'][i]); }
   }
 });
 
